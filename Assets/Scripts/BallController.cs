@@ -12,62 +12,42 @@ using UnityEngine.SceneManagement;
 
 public class BallController : MonoBehaviour
 {
+    
+    public float BallSpeed  {get;set;}
+       
+    public bool IsBallActive { get; set; }
 
-    [SerializeField, Tooltip("Current ball speed")]
-    float BallSpeed;
-    [SerializeField, Tooltip("Max speed. Boosted by bouncing"), Range(0, 100)]
-    int MaxSpeed = 20;
+    private BouncyItemComponent platform;
 
-    [SerializeField, Tooltip("Multiplier for ball speed"), Range(0, 100)]
-    float BallSpeedMult = 1.5f;
-
-    [SerializeField]
-    private GameObject Ball;
-    private Rigidbody _ballRb;
-
-
-    //reset ball to start pos
-    void ResetBall()
+    private void OnEnable()
     {
-        //IsGameStarted = false;
-        //Ball.transform.localPosition = player1.transform.localPosition + Vector3.forward;
-        //Ball.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezeAll;
+        platform = GameController.MainController.GetPivot.GetComponentInChildren<BouncyItemComponent>();
+        ResetBall();
     }
 
+    void ResetBall()
+    {
+        gameObject.transform.localPosition = platform.transform.localPosition + Vector3.forward;
+        gameObject.GetComponent<Rigidbody>().constraints = RigidbodyConstraints.FreezeAll;
+    }
 
-    //void BallMovement()
-    //{
-    //    if (!_ctrl.IsGameStarted) return;
-    //    Ball.transform.Translate(ballVector * Time.deltaTime * BallSpeed * BallSpeedMult);
-    //}
-    //void CheckCollision(Collision coll)
-    //{
-    //    if (coll.gameObject.GetComponent<CubeComponent>() != null)
-    //    {
-    //        EnemyCubes.Remove(coll.gameObject);
-    //        Destroy(coll.gameObject);
-    //        if (EnemyCubes.Count == 0)
-    //        {
-    //            Debug.LogWarning("Level complete! Click to rebuild");
-    //            NextLevel();
-    //        }
-    //        if (BallSpeed < MaxSpeed) { BallSpeed++; }
-    //    }
-    //    if (coll.gameObject == 
-    //        )
-    //    {
-    //        if (BallSpeed < MaxSpeed) { BallSpeed++; }
-    //    }
-    //    if (BallSpeed > MaxSpeed) BallSpeed = MaxSpeed;
-    //    // added fix
-    //}
+    private void Update()
+    {
+        gameObject.transform.localPosition += ballVector * BallSpeed * Time.deltaTime;
+    }
 
+    public event CollisionEventsHandler CollisionEvent;
+    private void OnCollisionEnter(Collision collision)
+    {
+        var comp = collision.gameObject.GetComponent<BouncyItemComponent>();
+        CollisionEvent?.Invoke(collision,comp);
+    }
 
-    private Vector3 ballVector;
+    private Vector3 ballVector = Vector3.forward;
     //just move forward
 
     // recalc vector of ball
-    void RecalcDir(Collision coll)
+    public void RecalcDir(Collision coll)
     {
         var normalVect = coll.GetContact(0).normal;
         ballVector = Vector3.Reflect(ballVector, normalVect);

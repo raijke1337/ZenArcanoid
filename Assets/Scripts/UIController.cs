@@ -23,7 +23,7 @@ public class UIController : MonoBehaviour
     }
 
     // toggle menu
-    void UIPauseHappened()
+    void UIPauseHappened(bool isPause)
     { 
         if (GameController.MainController.IsGamePaused)
         {            

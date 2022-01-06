@@ -20,7 +20,6 @@ public class SpawnerComp : MonoBehaviour
     private Vector3 spaceCrystalScale = new Vector3(0.2f,0.2f,0.2f);
     private Vector3 spaceCrystalPos = new Vector3(0, -0.3f, 0);
 
-
     private void OnValidate()
     {
         if (samples.Count == 0)
@@ -28,6 +27,7 @@ public class SpawnerComp : MonoBehaviour
             Debug.LogError("Add samples to spawner component!");
         }
     }
+
 
     /// <summary>
     /// Spawn some items
@@ -37,24 +37,21 @@ public class SpawnerComp : MonoBehaviour
     /// <param name="total">int cubes spawned per execution</param>
     /// <param name="split">will spawn int onjects with delay</param>
     /// <param name="delay">float time delay for split mode</param>
-    public List<BouncyItemComponent> SpawnCubes(SpawnerTask task)
+    public void SpawnCubes(SpawnerTask task)
     {
-        var list = new List<BouncyItemComponent>();
         for (int num = 0; num < task.total; num ++)
-        {            
-            BouncyItemComponent cube = Instantiate(_cube, UnityEngine.Random.insideUnitSphere * 5,UnityEngine.Random.rotation,GameObject.Find("CubesEmpty").transform);
-            list.Add(cube);
-            cube.SetObjectType(ObjectType.Cube);
-            // magic number todo fix
+        {
+            var cube = GameObject.Instantiate(_cube);
+            cube.transform.parent = GameController.MainController.GetCubesPool;
+            cube.transform.localPosition = UnityEngine.Random.insideUnitSphere * 5;
+            cube.transform.rotation = UnityEngine.Random.rotation;
+            cube.SetItemType(ObjectType.Point);
 
             GameObject crystal = samples[UnityEngine.Random.Range(0, samples.Count)];
             crystal = Instantiate(crystal,cube.transform);
             crystal.transform.localPosition += spaceCrystalPos;
             crystal.transform.localScale = spaceCrystalScale;
         }
-        list.TrimExcess();
-        return list;
-        // unused todo
     }
 
 

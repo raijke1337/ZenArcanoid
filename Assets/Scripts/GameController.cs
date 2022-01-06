@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using static UnityEngine.InputSystem.InputAction;
@@ -19,55 +20,48 @@ public class GameController : MonoBehaviour
         Debug.Log("Quit game at level" + Level);
         EditorApplication.isPlaying = false;
     }
-       
-    // controls
-    private DefaultControls _controls;
-    private BallController _balls;
-    private UIController _UIctrl;
 
     // game objects
-    private List<BouncyItemComponent> _bouncers;
-    private List<SpawnerComp> _spawners;
+    [SerializeField]
+    private BallController BallPrefab;
+    private BallController _ball;
+    private SpawnerComp _spawner;
     private Transform _playerPivot;
-    public Transform GetPlatform => _playerPivot.GetChild(1);
+    public Transform GetPivot => _playerPivot;
+    public Transform GetCubesPool { get; private set; }
 
 
     //game variables
     [SerializeField]
     private int Level;
+    private int Score;
     public bool IsGamePaused { get; private set; }
     public bool IsGameStarted { get; private set; }
-    //private const float AngleToRotatePlatformInSpace = 45f;
-    // rotate 45 degrees 45*8 = 360
-    //private bool IsPivotBusy;
-
-
-    // for platform rotation around pivot in Y
-    //private Vector3 _startingRotation;
-    //private float _angleX;
-    //private Quaternion _desiredRotation;
+    [SerializeField, Tooltip("Max speed. Boosted by bouncing"), Range(0, 100)]
+    float MaxSpeed = 20;
 
     // for controls
-    [SerializeField]
-    private float RotationSpeed = 3f;
-    private Vector2 _currentInputVector = new Vector2();
+    public Vector2 InputValue { get; private set; }
 
     // settings
     [SerializeField, Tooltip("Lives player gets"), Range(1, 5)]
     private int Lives = 3;
     [SerializeField, Tooltip("Number of cubes to spawn")]
     private SpawnerTask SpawnSettings;
-
-           
     
+    // controls
+    private DefaultControls _controls;
+
     private void OnEnable()
     {
-        UpdateBouncers();
-        // todo add log
+        GetCubesPool = GetComponentsInChildren<Transform>().First(t => t.name == "CubesPool");
+        _spawner = FindObjectOfType<SpawnerComp>();
+        _playerPivot = GameObject.FindGameObjectWithTag("Player").GetComponent<Transform>();
         _controls = new DefaultControls();
         SetupControls(true);
-        FindSpawners();
-        _playerPivot = GameObject.FindGameObjectWithTag("Player").GetComponent<Transform>();
+        SetupItems();
+
+
         IsGameStarted = false;
         IsGamePaused = false;
     }
@@ -75,49 +69,100 @@ public class GameController : MonoBehaviour
     {
         SetupControls(false);
     }
+    // subs unsubs
 
-    // update/init list of bouncers and subscribe to collision events
-    void UpdateBouncers()
+
+    // sets walls and everythingelse without proper settings to "solid"
+    private void SetupItems()
     {
-        //if (_bouncers == null)
-        //{
-            _bouncers = new List<BouncyItemComponent>
+        var list = FindObjectsOfType<BouncyItemComponent>();
+        foreach (var item in list)
+        {
+            if (item.GetGameItemType() == ObjectType.Unset)
             {
-                FindObjectOfType<BouncyItemComponent>()
-            };
-       // }
-        if (_bouncers.Count == 0) EditorApplication.isPaused = true;
+                item.SetItemType(ObjectType.Solid);
+            }    
+        }
+        if (list.Length > 0)
+        {
+            Debug.LogWarning($"Total {list.Length} objects not set proprly");
+        }
     }
-    // find spawner empties
-    void FindSpawners()
-    {
-        _spawners = new List<SpawnerComp>();
-        _spawners.Add(FindObjectOfType<SpawnerComp>());
-    }
-    // uses _spawners
     void SpawnStuff(SpawnerTask task)
     {
-        foreach (var spawner in _spawners)
-        {
-            spawner.SpawnCubes(task);
-        }
-        UpdateBouncers();
+        _spawner.SpawnCubes(task);
     }
-
     void StartGame()
     {
-        if (_playerPivot == null)
-        {
-            Debug.LogError("Set 'player' tag on platform");
-            return;
-        }
         SpawnStuff(SpawnSettings);
+        _ball = Instantiate(BallPrefab);
+        _ball.CollisionEvent += _ball_CollisionEvent;
+        _ball.BallSpeed = 1f;
         IsGameStarted = true;
     }
 
-    // controls here
+    private void _ball_CollisionEvent(Collision item, BouncyItemComponent comp)
+    {
+        //Debug.Log($"Ball collided with {item.gameObject.name} which is a {comp.GetGameItemType()}");
+        var type = comp.GetGameItemType();
+        GeneralCollision(item);
 
-    // subs unsubs
+        if (type == ObjectType.Point)
+        {
+            Score++;
+            Destroy(comp.gameObject);
+        }
+        if (type == ObjectType.Passthrough)
+        {
+            ApplyBonus();
+            Destroy(comp.gameObject);
+        }
+    }
+
+    private void GeneralCollision(Collision item)
+    {
+        _ball.RecalcDir(item);
+        if (_ball.BallSpeed < MaxSpeed)
+        {
+            _ball.BallSpeed += 0.5f;
+        }
+    }
+
+    private void ApplyBonus()
+    {
+        // some logic here
+    }
+
+    // pause is also used in UIcontroller
+    public event GameEventHandler PausePressedEventForUI;
+    private void Pause_performed(CallbackContext obj)
+    {
+        IsGamePaused = !IsGamePaused;
+        if (IsGamePaused) Time.timeScale = 0f;
+        else Time.timeScale = 1f;
+        PausePressedEventForUI?.Invoke(IsGamePaused);
+    }
+
+    private void SpaceBar_performed(CallbackContext obj)
+    {
+        if (IsGamePaused) return;
+        if (!IsGameStarted) { StartGame(); }
+        else { Tilt(); }
+    }
+
+    private void Update()
+    {
+        if (IsGameStarted & !IsGamePaused)
+        {
+            InputValue = _controls.Platform.WASD.ReadValue<Vector2>();
+        }
+    }
+
+
+    void Tilt()
+    {
+        Debug.Log("Relax...");
+    }
     void SetupControls(bool isstart)
     {
         if (isstart)
@@ -135,79 +180,6 @@ public class GameController : MonoBehaviour
         }
     }
 
-
-    private void Update()
-    {
-        if (IsGameStarted)
-        {
-            _currentInputVector = _controls.Platform.WASD.ReadValue<Vector2>();
-            PivotMove();
-        }
-    }
-
-
-    // pause is also used in UIcontroller
-    public event GameEventHandler PausePressedEventForUI;
-    private void Pause_performed(CallbackContext obj)
-    {
-        PausePressedEventForUI?.Invoke();
-        if (!IsGamePaused)
-        {
-            Time.timeScale = 0f;
-        }
-        if (IsGamePaused)
-        {
-            Time.timeScale = 1f;
-        }
-        IsGamePaused = !IsGamePaused;
-    }
-
-    public event GameEventHandler SpaceBarPressedEvent;
-    private void SpaceBar_performed(CallbackContext obj)
-    {
-        if (IsGamePaused) return;
-        SpaceBarPressedEvent?.Invoke();
-        if (!IsGameStarted) { StartGame(); }
-        else { Tilt(); }
-    }
-
-    private void PivotMove()
-    {
-
-    }
-
-
-         
-    //private void Right_performed(CallbackContext obj)
-    //{
-    //    if (IsPivotBusy) return;
-    //    _angleX += obj.ReadValue<float>() * AngleToRotatePlatformInSpace;
-    //    _desiredRotation = Quaternion.Euler(0f, _angleX, 0f);
-    //    StartCoroutine(RotateTransform(_desiredRotation,_playerPivot));
-    //}
-
-    //private IEnumerator RotateTransform(Quaternion desired, Transform tra)
-    //{
-    //    IsPivotBusy = true;
-    //    float timer = 0;
-    //    while (timer < RotationSpeed)
-    //    {
-    //        timer += Time.deltaTime;
-    //        tra.localRotation = Quaternion.Lerp(tra.localRotation, desired, Time.deltaTime);
-    //        yield return null;
-    //    }
-    //    IsPivotBusy = false;
-    //    yield return null;
-    //}
-
-
-
-    void Tilt()
-    {
-        Debug.Log("Relax...");
-    }
-
-
     #region TODO
     // rebuild level
     void NextLevel()
@@ -222,10 +194,7 @@ public class GameController : MonoBehaviour
     public void RestartLevel()
     {
         Level--;
-        foreach (var c in _bouncers)
-        {
-            Destroy(c);
-        }
+
         //ResetPlatf();
         //ResetBall();
         NextLevel();

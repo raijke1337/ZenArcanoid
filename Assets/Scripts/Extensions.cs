@@ -1,26 +1,16 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using UnityEngine;
-using Unity.Collections;
-using Unity.Jobs;
-using UnityEditor;
-using UnityEngine.UI;
-using UnityEngine.SceneManagement;
 
 public enum ObjectType
 {
-    Cube,
-    Wall,
-    Bonus,
-    Trap,
-    Player
+    Unset,
+    Solid,
+    Point,
+    Passthrough
 }
 
-public delegate void CollisionEventsHandler(BouncyItemComponent item);
-public delegate void GameEventHandler();
+public delegate void CollisionEventsHandler(Collision item, BouncyItemComponent comp);
+public delegate void GameEventHandler(bool value);
 
 
 [Serializable]
@@ -29,7 +19,7 @@ public struct SpawnerTask
     public int total;
     public int split;
     public float delay;
-    public SpawnerTask(int _total,int _split,float _delay)
+    public SpawnerTask(int _total, int _split, float _delay)
     {
         total = _total;
         split = _split;
