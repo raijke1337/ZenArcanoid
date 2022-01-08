@@ -4,7 +4,10 @@ public class BouncyItemComponent : MonoBehaviour
 {
     private Rigidbody _rb;
     private ObjectType _type;
+    private float _floatSpeed;
     // awake > enable > start
+
+
     private void OnEnable()
     {
         _rb = gameObject.GetComponent<Rigidbody>();
@@ -32,8 +35,18 @@ public class BouncyItemComponent : MonoBehaviour
         {
             _type = ObjectType.Solid;
         }
+        _floatSpeed = Random.Range(0, 2);
+
     }
 
     public ObjectType GetGameItemType() => _type;
+
+    private void Update()
+    {
+        if (_type == ObjectType.Point)
+        {
+            transform.position += Vector3.up * Time.deltaTime * _floatSpeed;
+        }
+    }
 
 }

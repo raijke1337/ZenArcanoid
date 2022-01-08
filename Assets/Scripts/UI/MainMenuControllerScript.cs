@@ -25,7 +25,14 @@ public class MainMenuControllerScript : MonoBehaviour
 
     public void QuitGame()
     {
+#if UNITY_EDITOR
         EditorApplication.isPlaying = false;
+#endif
+#if UNITY_STANDALONE_WIN
+        GameController.Debugs.AddLogEvent($"Quit game at {System.DateTime.Now.TimeOfDay}");
+        Application.Quit();
+#endif
+
     }
     public void StartTheGame()
     {

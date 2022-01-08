@@ -9,17 +9,18 @@ public class GameController : MonoBehaviour
 {
     // singleton
     public static GameController MainController;
+    public static DebugFunctionsManager Debugs;
+
     private void Awake()
     {
         if (MainController != null) { MainController = null; }
         MainController = this;
+#if UNITY_STANDALONE_WIN
+        Debugs = gameObject.AddComponent<DebugFunctionsManager>();
+#endif
+
     }    
-    // stop editor
-    public void QuitGame()
-    {
-        Debug.Log("Quit game at level" + Level);
-        EditorApplication.isPlaying = false;
-    }
+
 
     // game objects
     [SerializeField]
@@ -48,28 +49,50 @@ public class GameController : MonoBehaviour
     private int Lives = 3;
     [SerializeField, Tooltip("Number of cubes to spawn")]
     private SpawnerTask SpawnSettings;
-    
+
     // controls
     private DefaultControls _controls;
+#if UNITY_EDITOR
+    private DebugControls _debugcontrols;
+#endif
+
 
     private void OnEnable()
     {
         GetCubesPool = GetComponentsInChildren<Transform>().First(t => t.name == "CubesPool");
+#if UNITY_EDITOR
+        if (GetCubesPool == null)
+        {
+            EditorApplication.isPaused = true;
+            Debug.Log("Cubes pool not found!");
+        };
+#endif
         _spawner = FindObjectOfType<SpawnerComp>();
         _playerPivot = GameObject.FindGameObjectWithTag("Player").GetComponent<Transform>();
         _controls = new DefaultControls();
+#if UNITY_EDITOR
+        _debugcontrols = new DebugControls();
+#endif
         SetupControls(true);
         SetupItems();
 
 
         IsGameStarted = false;
         IsGamePaused = false;
+
+#if UNITY_STANDALONE_WIN
+        Debugs.AddLogEvent($"Start game at {System.DateTime.Now.TimeOfDay}");
+#endif
     }
     private void OnDisable()
     {
         SetupControls(false);
+#if UNITY_STANDALONE_WIN
+        Debugs.AddLogEvent($"Exit game at {System.DateTime.Now.TimeOfDay}");
+#endif
     }
     // subs unsubs
+
 
 
     // sets walls and everythingelse without proper settings to "solid"
@@ -83,15 +106,18 @@ public class GameController : MonoBehaviour
                 item.SetItemType(ObjectType.Solid);
             }    
         }
+#if UNITY_EDITOR
         if (list.Length > 0)
         {
             Debug.LogWarning($"Total {list.Length} objects not set proprly");
         }
+#endif
     }
     void SpawnStuff(SpawnerTask task)
     {
         _spawner.SpawnCubes(task);
     }
+    public event GameEventHandler GameStarted;
     void StartGame()
     {
         SpawnStuff(SpawnSettings);
@@ -99,6 +125,7 @@ public class GameController : MonoBehaviour
         _ball.CollisionEvent += _ball_CollisionEvent;
         _ball.BallSpeed = 1f;
         IsGameStarted = true;
+        GameStarted?.Invoke(true);
     }
 
     private void _ball_CollisionEvent(Collision item, BouncyItemComponent comp)
@@ -111,6 +138,7 @@ public class GameController : MonoBehaviour
         {
             Score++;
             Destroy(comp.gameObject);
+            Debug.Log($"Current score: {Score}");
         }
         if (type == ObjectType.Passthrough)
         {
@@ -154,6 +182,9 @@ public class GameController : MonoBehaviour
     {
         if (IsGameStarted & !IsGamePaused)
         {
+#if UNITY_EDITOR
+            InputValue = _debugcontrols.Platform.WASD.ReadValue<Vector2>();
+#endif
             InputValue = _controls.Platform.WASD.ReadValue<Vector2>();
         }
     }
@@ -180,7 +211,7 @@ public class GameController : MonoBehaviour
         }
     }
 
-    #region TODO
+#region TODO
     // rebuild level
     void NextLevel()
     {
@@ -209,7 +240,7 @@ public class GameController : MonoBehaviour
         //p1Rigid.velocity = Vector3.zero;
         //p1_InputVector2 = Vector2.zero;
     }
-    #endregion
+#endregion
 
 
 }

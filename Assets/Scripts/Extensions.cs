@@ -12,6 +12,11 @@ public enum ObjectType
 public delegate void CollisionEventsHandler(Collision item, BouncyItemComponent comp);
 public delegate void GameEventHandler(bool value);
 
+public enum BuildType
+{
+    Editor,
+    Build
+}
 
 [Serializable]
 public struct SpawnerTask
